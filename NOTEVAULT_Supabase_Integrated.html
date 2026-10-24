@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080b12">
+<title>NOTEVAULT — Your Notes. Your Space.</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root {
+  --bg: #080b12;
+  --panel: #101521;
+  --panel2: #141b29;
+  --border: rgba(160,180,220,.12);
+  --text: #f1f5ff;
+  --muted: #8792a8;
+  --blue: #4385ff;
+  --cyan: #5be3ff;
+  --radius: 18px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 15% 0%, rgba(34,91,210,.15), transparent 40%),
+    radial-gradient(ellipse at 90% 90%, rgba(39,90,170,.10), transparent 35%),
+    var(--bg);
+  color: var(--text);
+  font-family: "DM Sans", sans-serif;
+}
+
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+h1, h2, h3, .brand { font-family: "Space Grotesk", sans-serif; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+.hidden { display: none !important; }
+
+/* Access screen */
+
+#gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.orb {
+  position: absolute;
+  width: 330px;
+  height: 330px;
+  border-radius: 50%;
+  background: rgba(43,112,255,.15);
+  filter: blur(90px);
+  pointer-events: none;
+  animation: breathe 7s ease-in-out infinite alternate;
+}
+
+.gate-card {
+  width: min(100%, 410px);
+  padding: 38px;
+  position: relative;
+  z-index: 1;
+  background: rgba(16,21,33,.82);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  backdrop-filter: blur(24px);
+  box-shadow: 0 25px 100px rgba(0,0,0,.35);
+  animation: appear .65s ease both;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.brand-icon {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  color: white;
+  border-radius: 14px;
+  background: linear-gradient(145deg,#4385ff,#2350be);
+  box-shadow: 0 8px 25px rgba(67,133,255,.25);
+}
+
+.eyebrow {
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.gate-card h1 {
+  margin: 35px 0 10px;
+  font-size: clamp(29px,7vw,37px);
+  letter-spacing: -1.5px;
+}
+
+.muted { color: var(--muted); line-height: 1.7; }
+
+.code-input {
+  width: 100%;
+  margin-top: 25px;
+  padding: 16px;
+  color: var(--text);
+  background: #090e19;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  font-size: 23px;
+  letter-spacing: 12px;
+  text-align: center;
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 13px 18px;
+  color: white;
+  background: linear-gradient(110deg,#3476f6,#2860d6);
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 12px;
+  font-weight: 600;
+  transition: transform .2s, box-shadow .2s, filter .2s;
+}
+
+.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(54,112,255,.25);
+  filter: brightness(1.1);
+}
+
+.full { width: 100%; margin-top: 14px; }
+
+.error {
+  color: #ff8490;
+  font-size: 13px;
+  min-height: 20px;
+  margin-top: 12px;
+}
+
+.gate-footer {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Application layout */
+
+#app { min-height: 100vh; }
+
+.sidebar {
+  width: 250px;
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  padding: 25px 17px;
+  background: rgba(11,15,24,.94);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+}
+
+.sidebar .brand { padding: 0 9px 34px; }
+
+.nav-label {
+  margin: 10px 12px 12px;
+  color: #66728a;
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  font-weight: 700;
+}
+
+.nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 14px;
+  margin-bottom: 5px;
+  color: #98a3b8;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  text-align: left;
+  transition: .2s;
+}
+
+.nav-item i { width: 18px; text-align: center; }
+
+.nav-item:hover {
+  color: white;
+  background: rgba(255,255,255,.035);
+}
+
+.nav-item.active {
+  color: white;
+  background: rgba(67,133,255,.13);
+  border-color: rgba(67,133,255,.19);
+}
+
+.nav-item.active i { color: #67a0ff; }
+
+.sidebar-bottom { margin-top: auto; }
+
+.storage-box {
+  margin: 14px 4px 18px;
+  padding: 15px;
+  background: rgba(255,255,255,.025);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.storage-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.storage-track {
+  height: 4px;
+  margin-top: 13px;
+  background: #242c3d;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.storage-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--blue);
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 7px 0;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+
+.avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #a9c9ff;
+  background: #192b4a;
+  font-weight: 700;
+}
+
+.profile-info { min-width: 0; flex: 1; }
+.profile-info strong, .profile-info small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-info strong { font-size: 12px; }
+.profile-info small { margin-top: 4px; color: var(--muted); font-size: 10px; }
+
+.icon-button {
+  width: 37px;
+  height: 37px;
+  display: grid;
+  place-items: center;
+  color: #a5b0c5;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+.icon-button:hover { color: white; background: var(--panel2); }
+
+.main { margin-left: 250px; min-width: 0; }
+
+.topbar {
+  min-height: 76px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 15px 34px;
+  background: rgba(8,11,18,.78);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+}
+
+.topbar h2 { margin: 0; font-size: 18px; }
+.top-actions { display: flex; align-items: center; gap: 9px; }
+
+.content {
+  width: min(100%, 1450px);
+  margin: auto;
+  padding: 35px;
+}
+
+.hero {
+  min-height: 280px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: clamp(25px,4vw,45px);
+  background:
+    radial-gradient(ellipse at 80% 20%,rgba(49,111,255,.19),transparent 45%),
+    linear-gradient(115deg,#111827,#0d1421 70%);
+  border: 1px solid rgba(110,151,240,.17);
+  border-radius: 23px;
+}
+
+.hero-copy { position: relative; z-index: 1; max-width: 600px; }
+.hero h1 {
+  margin: 16px 0 12px;
+  font-size: clamp(30px,4vw,48px);
+  letter-spacing: -2px;
+  line-height: 1.12;
+}
+.hero p { max-width: 470px; font-size: 14px; line-height: 1.8; color: #9ba8bf; }
+.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 25px; }
+
+.hero-art {
+  width: 190px;
+  height: 190px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  position: relative;
+  margin-right: 20px;
+}
+
+.ring {
+  position: absolute;
+  border: 1px solid rgba(91,151,255,.24);
+  border-radius: 50%;
+  animation: rotate 22s linear infinite;
+}
+.ring:nth-child(1) { inset: 0; }
+.ring:nth-child(2) { inset: 20px; animation-direction: reverse; }
+.ring:nth-child(3) { inset: 40px; }
+.ring-core {
+  width: 70px;
+  height: 85px;
+  display: grid;
+  place-items: center;
+  color: #a9c9ff;
+  font-size: 30px;
+  border-radius: 17px;
+  background: linear-gradient(145deg,#1c3c72,#14233f);
+  border: 1px solid #345e9e;
+  box-shadow: 0 0 45px rgba(55,118,255,.2);
+  transform: rotate(-8deg);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 17px;
+  margin-top: 25px;
+}
+
+.stat-card, .panel {
+  background: rgba(16,21,33,.85);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.stat-card {
+  padding: 22px;
+  animation: appear .5s ease both;
+}
+.stat-card:nth-child(2) { animation-delay: .08s; }
+.stat-card:nth-child(3) { animation-delay: .16s; }
+
+.stat-top { display: flex; justify-content: space-between; align-items: center; }
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: #79aaff;
+  background: rgba(67,133,255,.12);
+  border-radius: 12px;
+}
+.stat-number { margin-top: 20px; font: 600 31px "Space Grotesk"; }
+.stat-caption { margin-top: 6px; color: var(--muted); font-size: 12px; }
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 37px 0 18px;
+}
+.section-heading h2 { margin: 0; font-size: 19px; }
+.text-button { color: #7eacff; background: none; border: 0; font-size: 13px; }
+.text-button:hover { color: white; }
+
+.doc-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 15px;
+}
+
+.doc-card {
+  min-width: 0;
+  padding: 18px;
+  background: rgba(16,21,33,.78);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  transition: transform .2s, border-color .2s;
+  animation: appear .35s ease both;
+}
+.doc-card:hover { transform: translateY(-3px); border-color: rgba(77,139,255,.4); }
+
+.doc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.file-icon {
+  width: 43px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  color: #ff8994;
+  background: rgba(255,86,106,.09);
+  border: 1px solid rgba(255,86,106,.12);
+  border-radius: 10px;
+  font-size: 20px;
+}
+.subject-badge {
+  padding: 6px 9px;
+  color: #9fc2ff;
+  background: rgba(67,133,255,.1);
+  border-radius: 7px;
+  font-size: 10px;
+}
+.doc-title {
+  overflow-wrap: anywhere;
+  margin: 17px 0 7px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.doc-meta { color: var(--muted); font-size: 11px; line-height: 1.8; }
+.doc-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid var(--border);
+}
+.doc-actions button {
+  flex: 1;
+  padding: 9px 5px;
+  color: #aab5c9;
+  background: #171e2c;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: 11px;
+}
+.doc-actions button:hover { color: white; border-color: #467be0; }
+.doc-actions .delete-button:hover { color: #ff8994; border-color: #a44450; }
+
+.page-title { margin: 0 0 8px; font-size: 27px; letter-spacing: -.8px; }
+.page-description { color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 23px 0;
+}
+.field {
+  min-width: 0;
+  padding: 12px 13px;
+  color: var(--text);
+  background: #0d121e;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.field::placeholder { color: #69758b; }
+.toolbar .search-field { flex: 1; min-width: 180px; }
+select.field { max-width: 100%; }
+
+.upload-layout {
+  display: grid;
+  grid-template-columns: minmax(0,1.5fr) minmax(230px,.7fr);
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.panel { padding: 24px; min-width: 0; }
+.panel h3 { margin: 0 0 9px; font-size: 17px; }
+.dropzone {
+  min-height: 240px;
+  margin-top: 20px;
+  padding: 25px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  border: 1px dashed rgba(91,143,255,.45);
+  border-radius: 16px;
+  background: rgba(49,100,200,.045);
+  transition: .2s;
+}
+.dropzone.dragover { background: rgba(49,100,200,.15); border-color: var(--cyan); }
+.drop-icon {
+  width: 60px;
+  height: 60px;
+  margin: auto auto 16px;
+  display: grid;
+  place-items: center;
+  color: #87b5ff;
+  background: rgba(67,133,255,.13);
+  border-radius: 17px;
+  font-size: 23px;
+}
+.dropzone h3 { margin-bottom: 7px; }
+.dropzone p { color: var(--muted); font-size: 12px; line-height: 1.7; }
+
+.form-label { display: block; margin: 19px 0 8px; color: #c1cadd; font-size: 12px; }
+.form-control { width: 100%; }
+
+.file-list { margin-top: 16px; display: grid; gap: 8px; }
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px;
+  background: #141b29;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  min-width: 0;
+}
+.file-row .file-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+.file-row small { display: block; color: var(--muted); margin-top: 4px; }
+
+.empty {
+  grid-column: 1/-1;
+  padding: 48px 20px;
+  text-align: center;
+  background: rgba(16,21,33,.55);
+  border: 1px dashed var(--border);
+  border-radius: 17px;
+}
+.empty i { color: #628ddc; font-size: 29px; }
+.empty h3 { margin: 17px 0 8px; }
+.empty p { color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 15px;
+  margin-top: 25px;
+}
+.subject-card {
+  padding: 22px;
+  text-align: left;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  transition: .2s;
+}
+.subject-card:hover { transform: translateY(-3px); border-color: #467be0; }
+.subject-card i { color: #78aaff; font-size: 21px; }
+.subject-card h3 { margin: 20px 0 6px; font-size: 15px; }
+.subject-card p { margin: 0; color: var(--muted); font-size: 12px; }
+
+.settings-grid { display: grid; gap: 17px; margin-top: 25px; }
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--border);
+}
+.setting-row:last-child { border-bottom: 0; }
+.setting-row p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.setting-value { color: #aab8d0; font-size: 12px; text-align: right; }
+
+.toast-container {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 100;
+  display: grid;
+  gap: 10px;
+  width: min(360px,calc(100vw - 40px));
+}
+.toast {
+  padding: 14px 16px;
+  background: #151e2d;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  box-shadow: 0 10px 35px #0007;
+  font-size: 13px;
+  animation: appear .25s ease both;
+}
+.toast.error-toast { border-color: #9e4452; }
+.toast.success-toast { border-color: #267e68; }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2,5,10,.82);
+  backdrop-filter: blur(10px);
+  animation: appear .2s ease both;
+}
+.modal {
+  width: min(100%,480px);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 24px;
+  background: #111827;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+.modal-header h2 { margin: 0; font-size: 19px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.secondary {
+  padding: 12px 16px;
+  color: #c1cadd;
+  background: #1a2232;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.danger { background: #a93145; }
+#previewModal { padding: 12px; }
+.preview-window {
+  width: min(100%,1100px);
+  height: min(88vh,850px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #101521;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.preview-header strong { overflow-wrap: anywhere; font-size: 13px; }
+.preview-window iframe { width: 100%; flex: 1; border: 0; background: #fff; }
+
+.mobile-menu { display: none; }
+
+@keyframes appear {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes rotate { to { transform: rotate(360deg); } }
+@keyframes breathe {
+  from { transform: translate(-25px,-15px) scale(.9); }
+  to { transform: translate(25px,15px) scale(1.12); }
+}
+
+@media(max-width:1100px) {
+  .doc-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .hero-art { width: 150px; height: 150px; margin-right: 0; }
+  .subject-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:800px) {
+  .sidebar {
+    transform: translateX(-105%);
+    transition: transform .25s ease;
+    box-shadow: 15px 0 50px #0005;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0; }
+  .mobile-menu { display: grid; }
+  .topbar { padding: 13px 17px; min-height: 68px; }
+  .content { padding: 22px 17px 35px; }
+  .upload-layout { grid-template-columns: 1fr; }
+  .hero-art { display: none; }
+}
+@media(max-width:560px) {
+  .gate-card { padding: 27px 23px; }
+  .hero { padding: 26px 22px; }
+  .hero h1 { font-size: 33px; }
+  .hero-actions .primary { flex: 1; }
+  .stats { grid-template-columns: 1fr; gap: 10px; }
+  .stat-card { padding: 17px; }
+  .stat-number { margin-top: 12px; font-size: 26px; }
+  .doc-grid, .subject-grid { grid-template-columns: 1fr; }
+  .panel { padding: 18px; }
+  .top-actions .top-upload-text { display: none; }
+  .toolbar { flex-direction: column; }
+  .toolbar .search-field, .toolbar select { width: 100%; max-width: none; }
+  .section-heading { margin-top: 28px; }
+  .setting-row { align-items: flex-start; }
+}
+@media(prefers-reduced-motion:reduce) {
+  *,*::before,*::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Secret contact menu */
+.nv-contact{position:fixed;right:22px;bottom:88px;z-index:70;font-family:"DM Sans",sans-serif}
+.nv-contact-main{width:50px;height:50px;display:grid;place-items:center;border:1px solid rgba(120,170,255,.35);border-radius:16px;background:linear-gradient(145deg,#4385ff,#2350be);color:#fff;font-size:18px;box-shadow:0 8px 30px rgba(40,100,255,.3);transition:transform .2s}
+.nv-contact-main:hover{transform:translateY(-3px)}
+.nv-contact-menu{display:none;position:absolute;right:0;bottom:61px;width:190px;padding:8px;background:#101521;border:1px solid rgba(160,180,220,.18);border-radius:14px;box-shadow:0 15px 45px #0009}
+.nv-contact-menu.open{display:grid;gap:5px;animation:appear .2s ease}
+.nv-contact-menu a{display:flex;align-items:center;gap:11px;padding:12px;border-radius:9px;color:#f1f5ff;text-decoration:none;font-size:13px}
+.nv-contact-menu a:hover{background:#1b2639}
+.nv-contact-menu .nv-whatsapp{color:#55dc92}
+.nv-contact-menu .nv-instagram{color:#eaa0ff}
+
+</style>
+</head>
+
+<body>
+
+<!-- Basic access screen. This code is visible in client-side JavaScript. -->
+<section id="gate">
+  <div class="orb"></div>
+  <div class="gate-card">
+    <div class="brand">
+      <div class="brand-icon"><i class="fa-solid fa-layer-group"></i></div>
+      NOTEVAULT
+    </div>
+    <div class="eyebrow" style="margin-top:34px">PERSONAL WORKSPACE</div>
+    <h1>Your notes.<br>Your space.</h1>
+    <p class="muted">A focused space for your study materials. Enter your access code to continue.</p>
+
+    <form id="gateForm">
+      <label for="accessCode" class="form-label">Security code</label>
+      <input id="accessCode" class="code-input" type="password"
+        inputmode="numeric" pattern="[0-9]*" maxlength="4"
+        placeholder="••••" autocomplete="off" required>
+      <button class="primary full" type="submit">
+        Unlock workspace <i class="fa-solid fa-arrow-right"></i>
+      </button>
+      <div id="gateError" class="error" role="alert"></div>
+    </form>
+
+    <div class="gate-footer">
+      <span><i class="fa-solid fa-shield-halved"></i> Personal workspace</span>
+      <span>NOTEVAULT © 2026</span>
+    </div>
+  </div>
+</section>
+
+<div id="app" class="hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-icon"><i class="fa-solid fa-layer-group"></i></div>
+      NOTEVAULT
+    </div>
+
+    <div class="nav-label">WORKSPACE</div>
+    <button class="nav-item active" data-page="dashboard"><i class="fa-solid fa-house"></i> Dashboard</button>
+    <button class="nav-item" data-page="notes"><i class="fa-regular fa-file-lines"></i> My Notes</button>
+    <button class="nav-item" data-page="subjects"><i class="fa-solid fa-book-open"></i> Subjects</button>
+    <button class="nav-item" data-page="upload"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Center</button>
+
+    <div class="nav-label" style="margin-top:26px">PREFERENCES</div>
+    <button class="nav-item" data-page="settings"><i class="fa-solid fa-sliders"></i> Settings</button>
+
+    <div class="sidebar-bottom">
+      <div class="storage-box">
+        <div class="storage-line">
+          <span style="color:var(--muted)">Supabase cloud</span>
+          <span>Active</span>
+        </div>
+        <div class="storage-track"><span></span></div>
+        <p style="font-size:10px;color:var(--muted);line-height:1.6;margin:10px 0 0">
+          Cloud documents are stored in your configured Supabase project.
+        </p>
+      </div>
+      <div class="profile">
+        <div class="avatar">N</div>
+        <div class="profile-info">
+          <strong>NOTEVAULT User</strong>
+          <small>Personal workspace</small>
+        </div>
+        <button class="icon-button" id="lockButton" title="Lock workspace" aria-label="Lock workspace">
+          <i class="fa-solid fa-lock"></i>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button id="menuButton" class="icon-button mobile-menu" aria-label="Open navigation">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <h2 id="pageHeading">Dashboard</h2>
+      </div>
+      <div class="top-actions">
+        <button id="refreshButton" class="icon-button" title="Refresh" aria-label="Refresh">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+        <button class="primary" data-goto-upload>
+          <i class="fa-solid fa-plus"></i><span class="top-upload-text"> Upload Notes</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="content" id="pageContent"></div>
+  </main>
+</div>
+
+<div id="toastContainer" class="toast-container" aria-live="polite"></div>
+<div id="modalRoot"></div>
+
+<!-- Quick contact menu -->
+<div class="nv-contact" id="nvContact">
+  <div class="nv-contact-menu" id="nvContactMenu">
+    <a href="https://wa.me/916209963120" target="_blank" rel="noopener noreferrer">
+      <i class="fa-brands fa-whatsapp nv-whatsapp"></i> WhatsApp
+    </a>
+    <a href="https://www.instagram.com/ic.aryann/" target="_blank" rel="noopener noreferrer">
+      <i class="fa-brands fa-instagram nv-instagram"></i> Instagram
+    </a>
+  </div>
+  <button class="nv-contact-main" id="nvContactToggle" aria-label="Contact" aria-expanded="false">
+    <i class="fa-solid fa-paper-plane"></i>
+  </button>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   NOTEVAULT SUPABASE CONFIGURATION
+   Use only the project URL and publishable/anon key here.
+   Never put a service-role/secret key in frontend code.
+   ========================================================= */
+
+const SUPABASE_URL = "https://osqhzwtkwdwnnumolnga.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_RJewsoHJGR_LVWnlY0wciA_FqqXcBpp";
+
+const ACCESS_CODE = "2312";
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const MAX_BATCH = 10;
+const STORAGE_BUCKET = "notes";
+const NOTES_TABLE = "notes";
+let supabaseClient = null;
+let cloudReady = false;
+
+const SUBJECTS = [
+  "Science",
+  "Mathematics",
+  "English",
+  "Social Science",
+  "Hindi",
+  "Computer / IT",
+  "French",
+  "Other"
+];
+
+const SUBJECT_ICONS = {
+  "Science": "fa-flask",
+  "Mathematics": "fa-calculator",
+  "English": "fa-book",
+  "Social Science": "fa-earth-asia",
+  "Hindi": "fa-language",
+  "Computer / IT": "fa-laptop-code",
+  "French": "fa-comments",
+  "Other": "fa-folder"
+};
+
+const $ = selector => document.querySelector(selector);
+
+let documents = [];
+let selectedFiles = [];
+let currentPage = "dashboard";
+let activeSubject = "All";
+let searchQuery = "";
+let sortMode = "newest";
+let previewURL = null;
+let previewObjectURL = null;
+
+/* Cloud-backed documents are loaded from Supabase Storage + public.notes. */
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) return "—";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+}
+
+function formatDate(value) {
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric", month: "short", year: "numeric"
+  }).format(new Date(value));
+}
+
+function toast(message, type = "info") {
+  const element = document.createElement("div");
+  element.className = "toast " +
+    (type === "error" ? "error-toast" : type === "success" ? "success-toast" : "");
+  element.textContent = message;
+  $("#toastContainer").appendChild(element);
+  setTimeout(() => element.remove(), 3500);
+}
+
+function showGate() {
+  closePreview();
+  $("#app").classList.add("hidden");
+  $("#gate").classList.remove("hidden");
+  $("#accessCode").value = "";
+  $("#gateError").textContent = "";
+  $("#sidebar").classList.remove("open");
+}
+
+function unlock() {
+  $("#gate").classList.add("hidden");
+  $("#app").classList.remove("hidden");
+  navigate("dashboard");
+}
+
+$("#gateForm").addEventListener("submit", event => {
+  event.preventDefault();
+
+  if ($("#accessCode").value === ACCESS_CODE) {
+    unlock();
+  } else {
+    $("#gateError").textContent = "Incorrect code. Please try again.";
+    $("#accessCode").value = "";
+    $("#accessCode").focus();
+  }
+});
+
+$("#lockButton").addEventListener("click", showGate);
+$("#menuButton").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
+$("#refreshButton").addEventListener("click", async () => {
+  await loadCloudDocuments();
+  renderPage();
+  toast("Workspace refreshed.", "success");
+});
+
+document.querySelectorAll("[data-goto-upload]").forEach(button => {
+  button.addEventListener("click", () => navigate("upload"));
+});
+
+document.querySelectorAll("[data-page]").forEach(button => {
+  button.addEventListener("click", () => navigate(button.dataset.page));
+});
+
+function navigate(page) {
+  currentPage = page;
+  $("#sidebar").classList.remove("open");
+
+  document.querySelectorAll(".nav-item").forEach(button => {
+    button.classList.toggle("active", button.dataset.page === page);
+  });
+
+  const names = {
+    dashboard: "Dashboard",
+    notes: "My Notes",
+    subjects: "Subjects",
+    upload: "Upload Center",
+    settings: "Settings"
+  };
+
+  $("#pageHeading").textContent = names[page] || "Dashboard";
+  renderPage();
+}
+
+function renderPage() {
+  const content = $("#pageContent");
+
+  if (currentPage === "dashboard") content.innerHTML = dashboardHTML();
+  if (currentPage === "notes") content.innerHTML = notesHTML();
+  if (currentPage === "subjects") content.innerHTML = subjectsHTML();
+  if (currentPage === "upload") content.innerHTML = uploadHTML();
+  if (currentPage === "settings") content.innerHTML = settingsHTML();
+
+  bindPageEvents();
+}
+
+function dashboardHTML() {
+  const totalSize = documents.reduce((sum, doc) => sum + doc.size, 0);
+  const subjectCount = new Set(documents.map(doc => doc.subject)).size;
+  const recent = [...documents]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 3);
+
+  return `
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">YOUR PERSONAL STUDY SPACE</div>
+        <h1>Every page moves<br>you forward.</h1>
+        <p>Keep your study materials organized, easy to find, and ready whenever you need them.</p>
+        <div class="hero-actions">
+          <button class="primary" data-goto-upload><i class="fa-solid fa-cloud-arrow-up"></i> Upload Notes</button>
+          <button class="secondary" data-goto-notes>Explore library <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+        <div class="ring-core"><i class="fa-regular fa-file-lines"></i></div>
+      </div>
+    </section>
+
+    <section class="stats">
+      <article class="stat-card">
+        <div class="stat-top"><span class="muted">Total Documents</span><span class="stat-icon"><i class="fa-regular fa-file-lines"></i></span></div>
+        <div class="stat-number">${documents.length}</div>
+        <div class="stat-caption">Documents in your cloud library</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-top"><span class="muted">Subjects Covered</span><span class="stat-icon"><i class="fa-solid fa-book-open"></i></span></div>
+        <div class="stat-number">${subjectCount}</div>
+        <div class="stat-caption">Subjects with notes</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-top"><span class="muted">Storage Used</span><span class="stat-icon"><i class="fa-solid fa-database"></i></span></div>
+        <div class="stat-number">${formatBytes(totalSize)}</div>
+        <div class="stat-caption">Cloud storage</div>
+      </article>
+    </section>
+
+    <div class="section-heading">
+      <h2>Recently added</h2>
+      <button class="text-button" data-goto-notes>View library <i class="fa-solid fa-arrow-right"></i></button>
+    </div>
+    <section class="doc-grid">
+      ${recent.length ? recent.map(doc => documentCard(doc)).join("") : emptyHTML(
+        "fa-folder-open", "Your library starts here",
+        "Upload your first file and your notes will appear here.",
+        "Upload your first file", "upload"
+      )}
+    </section>
+    <p class="muted" style="font-size:11px;margin-top:25px">
+      Prototype mode: documents are stored in Supabase cloud storage.
+    </p>
+  `;
+}
+
+function notesHTML() {
+  const filtered = getFilteredDocuments();
+
+  return `
+    <h1 class="page-title">My Notes</h1>
+    <p class="page-description">Your personal file library, organized in one place.</p>
+
+    <div class="toolbar">
+      <input id="searchInput" class="field search-field" placeholder="Search title, filename, or subject..." value="${escapeHTML(searchQuery)}" aria-label="Search notes">
+      <select id="subjectFilter" class="field" aria-label="Filter by subject">
+        ${["All", ...SUBJECTS].map(subject => `<option value="${escapeHTML(subject)}" ${activeSubject === subject ? "selected" : ""}>${subject === "All" ? "All subjects" : escapeHTML(subject)}</option>`).join("")}
+      </select>
+      <select id="sortFilter" class="field" aria-label="Sort notes">
+        <option value="newest" ${sortMode === "newest" ? "selected" : ""}>Newest first</option>
+        <option value="oldest" ${sortMode === "oldest" ? "selected" : ""}>Oldest first</option>
+        <option value="name" ${sortMode === "name" ? "selected" : ""}>Name A–Z</option>
+        <option value="largest" ${sortMode === "largest" ? "selected" : ""}>Largest first</option>
+      </select>
+    </div>
+
+    <div class="section-heading" style="margin-top:20px">
+      <h2>Documents <span class="muted" style="font-size:12px">(${filtered.length})</span></h2>
+      <button class="primary" data-goto-upload><i class="fa-solid fa-plus"></i> Add notes</button>
+    </div>
+
+    <section class="doc-grid" id="documentGrid">
+      ${filtered.length ? filtered.map(documentCard).join("") : emptyHTML(
+        "fa-magnifying-glass",
+        documents.length ? "No matching documents" : "No notes yet",
+        documents.length ? "Try another search or change your subject filter." : "Upload a file to begin building your library.",
+        documents.length ? "Clear filters" : "Upload a file",
+        documents.length ? "clear" : "upload"
+      )}
+    </section>
+  `;
+}
+
+function getFilteredDocuments() {
+  let result = documents.filter(doc => {
+    const query = searchQuery.trim().toLowerCase();
+    const matchesQuery = !query ||
+      doc.title.toLowerCase().includes(query) ||
+      doc.fileName.toLowerCase().includes(query) ||
+      doc.subject.toLowerCase().includes(query);
+
+    return matchesQuery && (activeSubject === "All" || doc.subject === activeSubject);
+  });
+
+  if (sortMode === "newest") result.sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
+  if (sortMode === "oldest") result.sort((a,b) => new Date(a.createdAt)-new Date(b.createdAt));
+  if (sortMode === "name") result.sort((a,b) => a.title.localeCompare(b.title));
+  if (sortMode === "largest") result.sort((a,b) => b.size-a.size);
+
+  return result;
+}
+
+function documentCard(doc) {
+  return `
+    <article class="doc-card">
+      <div class="doc-top">
+        <div class="file-icon"><i class="fa-regular fa-file-lines"></i></div>
+        <span class="subject-badge">${escapeHTML(doc.subject)}</span>
+      </div>
+      <h3 class="doc-title">${escapeHTML(doc.title)}</h3>
+      <div class="doc-meta">
+        <div><i class="fa-regular fa-calendar"></i> ${formatDate(doc.createdAt)}</div>
+        <div><i class="fa-solid fa-file"></i> ${formatBytes(doc.size)}</div>
+        <div title="${escapeHTML(doc.fileName)}">${escapeHTML(doc.fileName)}</div>
+      </div>
+      <div class="doc-actions">
+        <button data-action="preview" data-id="${doc.id}"><i class="fa-regular fa-eye"></i> Preview</button>
+        <button data-action="download" data-id="${doc.id}"><i class="fa-solid fa-download"></i> Save</button>
+        <button class="delete-button" data-action="delete" data-id="${doc.id}" aria-label="Delete ${escapeHTML(doc.title)}"><i class="fa-regular fa-trash-can"></i></button>
+      </div>
+    </article>
+  `;
+}
+
+function subjectsHTML() {
+  return `
+    <h1 class="page-title">Subjects</h1>
+    <p class="page-description">Explore your library by subject.</p>
+    <section class="subject-grid">
+      ${SUBJECTS.map(subject => {
+        const count = documents.filter(doc => doc.subject === subject).length;
+        return `
+          <button class="subject-card" data-subject="${escapeHTML(subject)}">
+            <i class="fa-solid ${SUBJECT_ICONS[subject]}"></i>
+            <h3>${escapeHTML(subject)}</h3>
+            <p>${count} ${count === 1 ? "document" : "documents"} <i class="fa-solid fa-arrow-right" style="float:right"></i></p>
+          </button>
+        `;
+      }).join("")}
+    </section>
+  `;
+}
+
+function uploadHTML() {
+  return `
+    <h1 class="page-title">Upload Center</h1>
+    <p class="page-description">Add files to your personal workspace.</p>
+
+    <div class="upload-layout">
+      <section class="panel">
+        <h3>Upload documents</h3>
+        <p class="muted" style="font-size:12px">All file formats · Up to 25 MB per file · Maximum 10 files per batch</p>
+
+        <div class="dropzone" id="dropzone">
+          <div>
+            <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+            <h3>Drop your files here</h3>
+            <p>Drag and drop any file or browse your device.</p>
+            <button class="primary" id="browseButton"><i class="fa-regular fa-folder-open"></i> Browse files</button>
+            <input id="fileInput" type="file" accept="*/*" multiple hidden>
+          </div>
+        </div>
+
+        <div id="selectedFiles" class="file-list">
+          ${selectedFiles.map((file,index) => fileRow(file,index)).join("")}
+        </div>
+
+        <label class="form-label" for="documentTitle">Document title (optional)</label>
+        <input id="documentTitle" class="field form-control" maxlength="120" placeholder="e.g. Chapter 1 — Chemical Reactions">
+
+        <label class="form-label" for="uploadSubject">Subject</label>
+        <select id="uploadSubject" class="field form-control">
+          ${SUBJECTS.map(subject => `<option value="${escapeHTML(subject)}">${escapeHTML(subject)}</option>`).join("")}
+        </select>
+
+        <button class="primary full" id="uploadButton" ${selectedFiles.length ? "" : "disabled"}>
+          <i class="fa-solid fa-arrow-up-from-bracket"></i> Upload to NOTEVAULT
+        </button>
+        <p class="muted" style="font-size:11px;line-height:1.7;margin-top:12px">
+          Files are uploaded to Supabase Storage and remain available when you return.
+        </p>
+      </section>
+
+      <aside class="panel">
+        <h3>Upload guidelines</h3>
+        <div class="setting-row">
+          <div><strong style="font-size:13px">File format</strong><p>All file formats</p></div>
+          <i class="fa-regular fa-file-lines" style="color:#ff8994"></i>
+        </div>
+        <div class="setting-row">
+          <div><strong style="font-size:13px">Maximum size</strong><p>Per individual file</p></div>
+          <span class="setting-value">25 MB</span>
+        </div>
+        <div class="setting-row">
+          <div><strong style="font-size:13px">Batch limit</strong><p>Files per selection</p></div>
+          <span class="setting-value">10 files</span>
+        </div>
+        <div class="setting-row">
+          <div><strong style="font-size:13px">Cloud sync</strong><p>Supabase Storage</p></div>
+          <span class="setting-value">Connected</span>
+        </div>
+      </aside>
+    </div>
+  `;
+}
+
+function fileRow(file,index) {
+  return `
+    <div class="file-row">
+      <i class="fa-regular fa-file-lines" style="color:#ff8994;font-size:19px"></i>
+      <div class="file-name">${escapeHTML(file.name)}<small>${formatBytes(file.size)}</small></div>
+      <button class="icon-button" data-remove-file="${index}" aria-label="Remove ${escapeHTML(file.name)}"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  `;
+}
+
+function settingsHTML() {
+  const size = documents.reduce((sum, doc) => sum + doc.size, 0);
+
+  return `
+    <h1 class="page-title">Settings</h1>
+    <p class="page-description">Workspace details and application preferences.</p>
+
+    <div class="settings-grid">
+      <section class="panel">
+        <h3><i class="fa-regular fa-user" style="color:#78aaff;margin-right:9px"></i>Workspace</h3>
+        <div class="setting-row"><div><strong style="font-size:13px">Workspace name</strong><p>Your personal study library</p></div><span class="setting-value">NOTEVAULT</span></div>
+        <div class="setting-row"><div><strong style="font-size:13px">Access method</strong><p>Shared local access code</p></div><span class="setting-value">PIN screen</span></div>
+        <div class="setting-row"><div><strong style="font-size:13px">Cloud authentication</strong><p>No user accounts are configured</p></div><span class="setting-value">Disabled</span></div>
+      </section>
+
+      <section class="panel">
+        <h3><i class="fa-solid fa-shield-halved" style="color:#78aaff;margin-right:9px"></i>Privacy & storage</h3>
+        <div class="setting-row"><div><strong style="font-size:13px">Current session size</strong><p>Total size of selected documents</p></div><span class="setting-value">${formatBytes(size)}</span></div>
+        <div class="setting-row"><div><strong style="font-size:13px">Maximum upload size</strong><p>Per file</p></div><span class="setting-value">25 MB</span></div>
+        <div class="setting-row"><div><strong style="font-size:13px">Storage location</strong><p>Supabase cloud storage</p></div><span class="setting-value">Supabase cloud</span></div>
+        <div class="setting-row"><div><strong style="font-size:13px">Supabase</strong><p>Supabase project configured</p></div><span class="setting-value">Supabase</span></div>
+      </section>
+
+      <section class="panel">
+        <h3><i class="fa-solid fa-circle-info" style="color:#78aaff;margin-right:9px"></i>Application</h3>
+        <div class="setting-row"><div><strong style="font-size:13px">Version</strong><p>NOTEVAULT frontend prototype</p></div><span class="setting-value">1.0.0</span></div>
+        <div class="setting-row"><div><strong style="font-size:13px">Supported format</strong><p>Multiple file formats</p></div><span class="setting-value">All formats</span></div>
+        <div class="setting-row"><div><strong style="font-size:13px">Lock workspace</strong><p>Return to the access screen</p></div><button class="secondary" id="settingsLock">Lock now</button></div>
+      </section>
+    </div>
+  `;
+}
+
+function emptyHTML(icon,title,description,buttonText,action) {
+  return `
+    <div class="empty">
+      <i class="fa-solid ${icon}"></i>
+      <h3>${escapeHTML(title)}</h3>
+      <p>${escapeHTML(description)}</p>
+      <button class="primary" data-empty-action="${action}">${escapeHTML(buttonText)}</button>
+    </div>
+  `;
+}
+
+function bindPageEvents() {
+  document.querySelectorAll("[data-goto-upload]").forEach(button => {
+    button.addEventListener("click", () => navigate("upload"));
+  });
+
+  document.querySelectorAll("[data-goto-notes]").forEach(button => {
+    button.addEventListener("click", () => navigate("notes"));
+  });
+
+  document.querySelectorAll("[data-empty-action]").forEach(button => {
+    button.addEventListener("click", () => {
+      if (button.dataset.emptyAction === "upload") navigate("upload");
+      if (button.dataset.emptyAction === "clear") {
+        searchQuery = "";
+        activeSubject = "All";
+        sortMode = "newest";
+        renderPage();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-subject]").forEach(button => {
+    button.addEventListener("click", () => {
+      activeSubject = button.dataset.subject;
+      searchQuery = "";
+      navigate("notes");
+    });
+  });
+
+  document.querySelectorAll("[data-action]").forEach(button => {
+    button.addEventListener("click", () => {
+      const doc = documents.find(item => item.id === button.dataset.id);
+      if (!doc) return;
+
+      if (button.dataset.action === "preview") previewDocument(doc);
+      if (button.dataset.action === "download") downloadDocument(doc);
+      if (button.dataset.action === "delete") confirmDelete(doc);
+    });
+  });
+
+  const search = $("#searchInput");
+  if (search) search.addEventListener("input", () => {
+    searchQuery = search.value;
+    const position = search.selectionStart;
+    const html = notesHTML();
+    $("#pageContent").innerHTML = html;
+    bindPageEvents();
+    const newSearch = $("#searchInput");
+    newSearch.focus();
+    newSearch.setSelectionRange(position,position);
+  });
+
+  const subject = $("#subjectFilter");
+  if (subject) subject.addEventListener("change", () => {
+    activeSubject = subject.value;
+    renderPage();
+  });
+
+  const sort = $("#sortFilter");
+  if (sort) sort.addEventListener("change", () => {
+    sortMode = sort.value;
+    renderPage();
+  });
+
+  const input = $("#fileInput");
+  const browse = $("#browseButton");
+  const dropzone = $("#dropzone");
+
+  if (input && browse && dropzone) {
+    browse.addEventListener("click", () => input.click());
+    input.addEventListener("change", () => {
+      addSelectedFiles([...input.files]);
+      input.value = "";
+    });
+
+    dropzone.addEventListener("dragover", event => {
+      event.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+
+    dropzone.addEventListener("drop", event => {
+      event.preventDefault();
+      dropzone.classList.remove("dragover");
+      addSelectedFiles([...event.dataTransfer.files]);
+    });
+
+    dropzone.addEventListener("click", event => {
+      if (event.target.closest("button")) return;
+      input.click();
+    });
+  }
+
+  document.querySelectorAll("[data-remove-file]").forEach(button => {
+    button.addEventListener("click", () => {
+      selectedFiles.splice(Number(button.dataset.removeFile),1);
+      renderPage();
+    });
+  });
+
+  const uploadButton = $("#uploadButton");
+  if (uploadButton) uploadButton.addEventListener("click", addDocumentsToSession);
+
+  const settingsLock = $("#settingsLock");
+  if (settingsLock) settingsLock.addEventListener("click", showGate);
+}
+
+function addSelectedFiles(files) {
+  if (!files.length) return;
+  let added = 0;
+
+  for (const file of files) {
+    if (selectedFiles.length >= MAX_BATCH) {
+      toast("You can select up to 10 files per batch.", "error");
+      break;
+    }
+    if (!file.size) {
+      toast(`${file.name}: empty files are not accepted.`, "error");
+      continue;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast(`${file.name}: file exceeds the 25 MB limit.`, "error");
+      continue;
+    }
+    const duplicate = selectedFiles.some(item =>
+      item.name === file.name &&
+      item.size === file.size &&
+      item.lastModified === file.lastModified
+    );
+    if (duplicate) continue;
+    selectedFiles.push(file);
+    added++;
+  }
+
+  if (added) toast(`${added} file${added === 1 ? "" : "s"} selected.`, "success");
+  renderPage();
+}
+
+async function addDocumentsToSession() {
+  if (!selectedFiles.length) return;
+  if (!supabaseClient || !cloudReady) {
+    toast("Supabase is not connected. Check your project configuration.", "error");
+    return;
+  }
+
+  const button = $("#uploadButton");
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+  }
+
+  const filesToUpload = [...selectedFiles];
+  const titleInput = $("#documentTitle");
+  const customTitle = titleInput ? titleInput.value.trim() : "";
+  const subjectInput = $("#uploadSubject");
+  const subject = subjectInput ? subjectInput.value : "Other";
+  const uploadedFileKeys = new Set();
+
+  try {
+    for (let index = 0; index < filesToUpload.length; index++) {
+      const file = filesToUpload[index];
+      if (!file.size || file.size > MAX_FILE_SIZE) {
+        throw new Error(`${file.name}: file must be between 1 byte and 25 MB.`);
+      }
+
+      const id = crypto.randomUUID();
+      const safeName = file.name.replace(/[^\w.\-() ]/g, "_");
+      const storagePath = `${id}/${safeName}`;
+      const title = filesToUpload.length === 1 && customTitle
+        ? customTitle
+        : file.name.replace(/\.[^.]+$/, "");
+
+      const { error: storageError } = await supabaseClient
+        .storage.from(STORAGE_BUCKET)
+        .upload(storagePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type || "application/octet-stream"
+        });
+
+      if (storageError) throw new Error(`Storage upload failed for ${file.name}: ${storageError.message}`);
+
+      const { data, error: dbError } = await supabaseClient
+        .from(NOTES_TABLE)
+        .insert({
+          title,
+          file_name: file.name,
+          subject,
+          file_size: file.size,
+          storage_path: storagePath,
+          content_type: file.type || "application/octet-stream"
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        await supabaseClient.storage.from(STORAGE_BUCKET).remove([storagePath]);
+        throw new Error(`Database save failed: ${dbError.message}`);
+      }
+
+      documents.unshift({
+        id: data.id,
+        title: data.title || title,
+        fileName: data.file_name || file.name,
+        subject: data.subject || subject,
+        size: Number(data.file_size ?? file.size),
+        createdAt: data.created_at || new Date().toISOString(),
+        storagePath: data.storage_path || storagePath,
+        mimeType: data.content_type || file.type || "application/octet-stream",
+        file: null,
+        objectURL: null
+      });
+
+      uploadedFileKeys.add(`${file.name}|${file.size}|${file.lastModified}`);
+    }
+
+    selectedFiles = selectedFiles.filter(file =>
+      !uploadedFileKeys.has(`${file.name}|${file.size}|${file.lastModified}`)
+    );
+
+    toast(`${uploadedFileKeys.size} file(s) uploaded successfully.`, "success");
+    navigate("notes");
+  } catch (error) {
+    console.error("NOTEVAULT upload error:", error);
+    toast(error.message || "Upload failed.", "error");
+    await loadCloudDocuments();
+  } finally {
+    const activeButton = $("#uploadButton");
+    if (activeButton) {
+      activeButton.disabled = !selectedFiles.length;
+      activeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket"></i> Upload to NOTEVAULT';
+    }
+  }
+}
+
+async function getCloudFile(doc) {
+  if (!supabaseClient || !doc.storagePath) {
+    throw new Error("Cloud file information is missing.");
+  }
+  const { data, error } = await supabaseClient.storage
+    .from(STORAGE_BUCKET)
+    .download(doc.storagePath);
+  if (error) throw error;
+  return data;
+}
+
+async function previewDocument(doc) {
+  closePreview();
+  try {
+    const file = await getCloudFile(doc);
+    const mimeType = doc.mimeType || file.type || "";
+    const canPreview = mimeType === "application/pdf" ||
+      mimeType.startsWith("image/") ||
+      mimeType.startsWith("text/") ||
+      mimeType.startsWith("audio/") ||
+      mimeType.startsWith("video/");
+
+    if (!canPreview) {
+      toast("Preview is unavailable for this file type. Use Save to download it.", "info");
+      return;
+    }
+
+    previewObjectURL = URL.createObjectURL(file);
+    const backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop";
+    backdrop.id = "previewModal";
+
+    let previewMarkup = "";
+    if (mimeType.startsWith("audio/")) {
+      previewMarkup = `<div style="padding:30px"><audio controls style="width:100%" src="${previewObjectURL}"></audio></div>`;
+    } else if (mimeType.startsWith("video/")) {
+      previewMarkup = `<video controls style="width:100%;height:100%;background:#000" src="${previewObjectURL}"></video>`;
+    } else {
+      previewMarkup = `<iframe title="File preview" src="${previewObjectURL}"></iframe>`;
+    }
+
+    backdrop.innerHTML = `
+      <section class="preview-window" role="dialog" aria-modal="true" aria-label="File preview">
+        <header class="preview-header">
+          <strong>${escapeHTML(doc.title)}</strong>
+          <button class="icon-button" id="closePreview" aria-label="Close preview"><i class="fa-solid fa-xmark"></i></button>
+        </header>
+        ${previewMarkup}
+      </section>`;
+
+    $("#modalRoot").appendChild(backdrop);
+    $("#closePreview").addEventListener("click", closePreview);
+    backdrop.addEventListener("click", event => {
+      if (event.target === backdrop) closePreview();
+    });
+  } catch (error) {
+    console.error(error);
+    toast(`Preview failed: ${error.message}`, "error");
+  }
+}
+
+function closePreview() {
+  const modal = $("#previewModal");
+  if (modal) modal.remove();
+  if (previewObjectURL) {
+    URL.revokeObjectURL(previewObjectURL);
+    previewObjectURL = null;
+  }
+}
+
+async function downloadDocument(doc) {
+  try {
+    const file = await getCloudFile(doc);
+    const url = URL.createObjectURL(file);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = doc.fileName || "download";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast("Download started.", "success");
+  } catch (error) {
+    console.error(error);
+    toast(`Download failed: ${error.message}`, "error");
+  }
+}
+
+function confirmDelete(doc) {
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.id = "confirmModal";
+
+  backdrop.innerHTML = `
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteHeading">
+      <div class="modal-header">
+        <h2 id="deleteHeading">Delete document?</h2>
+        <button class="icon-button" id="cancelDeleteX" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p class="muted">This will permanently remove <strong style="color:white">${escapeHTML(doc.title)}</strong> from your cloud library.</p>
+      <div class="modal-actions">
+        <button class="secondary" id="cancelDelete">Cancel</button>
+        <button class="primary danger" id="confirmDelete">Delete document</button>
+      </div>
+    </section>
+  `;
+
+  $("#modalRoot").appendChild(backdrop);
+  const close = () => backdrop.remove();
+  $("#cancelDelete").addEventListener("click", close);
+  $("#cancelDeleteX").addEventListener("click", close);
+  backdrop.addEventListener("click", event => {
+    if (event.target === backdrop) close();
+  });
+
+  $("#confirmDelete").addEventListener("click", async () => {
+    const button = $("#confirmDelete");
+    button.disabled = true;
+    button.textContent = "Deleting...";
+
+    try {
+      const { error: storageError } = await supabaseClient.storage
+        .from(STORAGE_BUCKET).remove([doc.storagePath]);
+      if (storageError) throw storageError;
+
+      const { error: dbError } = await supabaseClient
+        .from(NOTES_TABLE).delete().eq("id", doc.id);
+      if (dbError) throw dbError;
+
+      documents = documents.filter(item => item.id !== doc.id);
+      close();
+      renderPage();
+      toast("Document deleted.", "success");
+    } catch (error) {
+      console.error(error);
+      button.disabled = false;
+      button.textContent = "Delete document";
+      toast(`Delete failed: ${error.message}`, "error");
+    }
+  });
+}
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    closePreview();
+    const modal = $("#confirmModal");
+    if (modal) modal.remove();
+    $("#sidebar").classList.remove("open");
+  }
+});
+
+document.addEventListener("click", event => {
+  if (window.innerWidth > 800 || !$("#sidebar").classList.contains("open")) return;
+
+  if (!$("#sidebar").contains(event.target) &&
+      !$("#menuButton").contains(event.target)) {
+    $("#sidebar").classList.remove("open");
+  }
+});
+
+/* Initialize Supabase and load the cloud library. */
+async function initializeSupabase() {
+  try {
+    if (!window.supabase || !window.supabase.createClient) {
+      throw new Error("Supabase library did not load. Check your internet connection.");
+    }
+    supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+    cloudReady = true;
+    await loadCloudDocuments();
+    console.info("NOTEVAULT: Supabase connected.");
+  } catch (error) {
+    cloudReady = false;
+    console.error("NOTEVAULT Supabase initialization failed:", error);
+    toast("Supabase connection failed. Check your URL, key, table, bucket and policies.", "error");
+  }
+}
+
+async function loadCloudDocuments() {
+  if (!supabaseClient || !cloudReady) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from(NOTES_TABLE)
+      .select("id,title,file_name,subject,file_size,storage_path,content_type,created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    documents = (data || []).map(row => ({
+      id: row.id,
+      title: row.title || row.file_name || "Untitled",
+      fileName: row.file_name || row.title || "download",
+      subject: row.subject || "Other",
+      size: Number(row.file_size) || 0,
+      storagePath: row.storage_path,
+      mimeType: row.content_type || "application/octet-stream",
+      createdAt: row.created_at || new Date().toISOString(),
+      file: null,
+      objectURL: null
+    }));
+
+    if (typeof currentPage !== "undefined" && $("#pageContent")) renderPage();
+  } catch (error) {
+    console.error("NOTEVAULT cloud sync error:", error);
+    toast(`Could not load cloud files: ${error.message}`, "error");
+  }
+}
+
+/* Contact menu behavior */
+const nvContactToggle = $("#nvContactToggle");
+const nvContactMenu = $("#nvContactMenu");
+nvContactToggle.addEventListener("click", () => {
+  const isOpen = nvContactMenu.classList.toggle("open");
+  nvContactToggle.setAttribute("aria-expanded", String(isOpen));
+});
+document.addEventListener("click", event => {
+  if (!$("#nvContact").contains(event.target)) {
+    nvContactMenu.classList.remove("open");
+    nvContactToggle.setAttribute("aria-expanded", "false");
+  }
+});
+
+renderPage();
+initializeSupabase();
+</script>
+</body>
+</html>
